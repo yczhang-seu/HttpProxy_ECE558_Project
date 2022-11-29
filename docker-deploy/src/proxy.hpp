@@ -1,4 +1,6 @@
 #include "cache.hpp"
+#include "LRUCache.hpp"
+#include "LFUCache.hpp"
 #include "log.hpp"
 #include "server.h"
 #include "MyException.h"
