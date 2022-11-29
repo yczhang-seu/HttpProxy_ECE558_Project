@@ -18,7 +18,8 @@ int main(int argc, char* argv[]){
         return -1;
     }
     int thread_id = 0;
-    tryOpenFile("/var/log/erss/proxy.log");
+    // tryOpenFile("/var/log/erss/proxy.log");
+    tryOpenFile("./new.log");
     while(1){
         try{
             Server server(PORT);

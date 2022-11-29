@@ -23,7 +23,7 @@ string LFUCache::get(const string& key) {
 
 void LFUCache::put(const string& key, const string& value) {
     std::lock_guard<std::mutex> lck(cache_mutex);
-    if (_capacity == 0) {
+    if (capacity == 0) {
         return;
     }
     if (keys.count(key)) {
@@ -41,7 +41,7 @@ void LFUCache::put(const string& key, const string& value) {
         keys[key] = freqs[freq].begin();
     }
     else {
-        if (keys.size() < _capacity) {
+        if (keys.size() < capacity) {
             freqs[1].push_front(Node(key, value, 1));
             keys[key] = freqs[1].begin();
             minFreq = 1;

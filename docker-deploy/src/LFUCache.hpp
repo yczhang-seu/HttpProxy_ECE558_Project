@@ -20,7 +20,6 @@ private:
     };
     unordered_map<int, list<Node>> freqs;
     unordered_map<string, list<Node>::iterator> keys;
-    int _capacity;
     int minFreq;
 public:
     LFUCache(int capacity): Cache(capacity), minFreq(0) {}
