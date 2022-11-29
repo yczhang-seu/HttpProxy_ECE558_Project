@@ -1,9 +1,25 @@
 #include "proxy.hpp"
 
-int main(){
-    Cache cache(20);
+int main(int argc, char* argv[]){
+    if (argc != 2) {
+        cerr << "Usage: ./main [LRU|LFU]" << endl;
+        return -1;
+    }
+    Cache* cache;
+    string arg(argv[1]);
+    if (arg == "LRU") {
+        cache = new LRUCache(20);
+    }
+    else if (arg == "LFU") {
+        cache = new LFUCache(20);
+    }
+    else {
+        cerr << "Invalid argument!" << endl;
+        return -1;
+    }
     int thread_id = 0;
-    tryOpenFile("/var/log/erss/proxy.log");
+    // tryOpenFile("/var/log/erss/proxy.log");
+    tryOpenFile("./new.log");
     while(1){
         try{
             Server server(PORT);
@@ -15,7 +31,7 @@ int main(){
             info->browser_fd = browser_fd;
             info->ip_addr = ip_addr;
             info->thread_id = thread_id;
-            info->cache = &cache;
+            info->cache = cache;
             pthread_t thread;
             pthread_create(&thread, NULL, process_request, info);
             //process_request(info);
@@ -25,5 +41,6 @@ int main(){
             cerr<<thread_id<<": "<<e.what()<<endl;
         }
     }
+    delete cache;
     return 0;
 }

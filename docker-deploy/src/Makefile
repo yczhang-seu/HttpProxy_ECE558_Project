@@ -1,9 +1,9 @@
 all: main
 
-main: main.cpp proxy.cpp log.cpp cache.cpp request.cpp response.cpp server.cpp
-	g++ -g  -o main main.cpp proxy.cpp log.cpp cache.cpp request.cpp response.cpp server.cpp -lpthread
-test: test.cpp proxy.cpp log.cpp cache.cpp request.cpp response.cpp server.cpp
-	g++ -g  -o test test.cpp proxy.cpp log.cpp cache.cpp request.cpp response.cpp server.cpp -lpthread
+main: main.cpp proxy.cpp log.cpp cache.cpp LRUCache.cpp LFUCache.cpp request.cpp response.cpp server.cpp
+	g++ -g  -o main main.cpp proxy.cpp log.cpp cache.cpp LRUCache.cpp LFUCache.cpp request.cpp response.cpp server.cpp -lpthread
+test: test.cpp proxy.cpp log.cpp cache.cpp LRUCache.cpp LFUCache.cpp request.cpp response.cpp server.cpp
+	g++ -g  -o test test.cpp proxy.cpp log.cpp cache.cpp LRUCache.cpp LFUCache.cpp request.cpp response.cpp server.cpp -lpthread
 
 
 .PHONY:
