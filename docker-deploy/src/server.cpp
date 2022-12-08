@@ -105,7 +105,6 @@ void my_recvFrom(int fd, vector<char> &v){
         while(index<len){
             v.resize(index+65536);
             msg_len = recv(fd,&v.data()[index],v.size(),0);
-            //checkMsgLen(msg_len);
             if(msg_len<=0){
                 break;
             }
@@ -125,29 +124,10 @@ void checkMsgLen(int msg_len){
     }
 }
 
-void my_sendTo(int fd, vector<char> &v){
-    int status = send(fd, &v.data()[0], v.size(),0);
-    if(status==-1){
-        throw MyException("Error while sending","");
-    }
-}
-
-
 void Client::my_recv(vector<char> &v){
     my_recvFrom(this->socket_fd, v);
 }
 
-void Client::my_send(vector<char> &v){
-    my_sendTo(this->socket_fd,v);
-}
-
-
-void Socket::printInfo(){
-    cout<<"status: "<<status<<endl;
-    cout<<"socket_fd: "<<socket_fd<<endl;
-    cout<<"hostname: "<<hostname<<endl;
-    cout<<"port: "<<port<<endl;
-}
 
 string Socket::getHostPortInfo(){
     string ans;
@@ -163,50 +143,7 @@ string Socket::getHostPortInfo(){
     return ans;
 }
 
-void init_fdset(fd_set &readfds, vector<int> fds, int &nfds){
-    FD_ZERO(&readfds);
-    nfds = fds[0];
-    for(int i=0;i<fds.size();i++){
-        FD_SET(fds[i],&readfds);
-        if(fds[i]>nfds){
-            nfds = fds[i];
-        }
-    }
-}
-
 void sendString(int socket,string message){
-    // char ch[message.size()+1]={0};
-    // strcpy(ch,message.c_str());
-    //cout<<message.data();
     send(socket,message.data(),message.size()+1,0);
 }
 
-string recvWithLen(int sender_fd,string message,int content_len) {
-    int total_len = 0, recv_len = 0;
-    string ans = "";
-    while (total_len < content_len) {
-        char content[65536] = {0};
-        recv_len = recv(sender_fd, content, sizeof(content), 0);
-        if (recv_len <= 0) {
-            break;
-        }
-        string temp(content, recv_len);
-        ans.append(temp);
-        total_len += recv_len;
-    }
-    return message+ans;
-}
-
-string recvChunked(int sender_fd,string message){
-    string ans = "";
-    while (1) {
-        char content[65536] = {0};
-        int recv_len = recv(sender_fd, content, sizeof(content), 0);
-        if (recv_len <= 0) {
-        break;
-        }
-        string temp(content, recv_len);
-        ans.append(temp);
-    }
-    return message+ans;
-}

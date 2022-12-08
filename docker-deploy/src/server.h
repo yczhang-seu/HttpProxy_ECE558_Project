@@ -34,7 +34,6 @@ public:
             free(host_info_list);
         }
     }
-    void printInfo();
     std::string getHostPortInfo();
 };
 
@@ -52,17 +51,14 @@ public:
     Client(const char *hostname, const char *port):Socket(hostname,port){
         startAsClient();
     }
-    void my_send(vector<char> &v);
     void my_recv(vector<char> &v);
     void startAsClient();
 };
 
 void my_recvFrom(int fd, vector<char> &v);
 void my_sendTo(int fd, vector<char> &v);
-void init_fdset(fd_set &readfds, vector<int> fds, int &nfds);
 void checkMsgLen(int msg_len);
 void sendString(int socket,string message);
-string recvWithLen(int sender_fd,string message,int content_len);
-string recvChunked(int sender_fd,string message);
+
 #endif
 
