@@ -74,13 +74,10 @@ int Server::accept_connection(string *ip_addr){
 void my_recvFrom(int fd, vector<char> &v){
     ssize_t index = 0;
     v.resize(65536);
-    //cout<<"1"<<endl;
     ssize_t msg_len = recv(fd,&v.data()[index],v.size(),0);
-    //cout<<"2"<<endl;
     checkMsgLen(msg_len);
     index+=msg_len;
     Response r=Response(v);
-    //cout<<r.getResponse()<<endl;
     if(r.getCode()=="304"){
         return;
     }
@@ -91,14 +88,12 @@ void my_recvFrom(int fd, vector<char> &v){
         while(res.find("0\r\n\r\n")==string::npos){
             v.resize(index+65536);
             msg_len = recv(fd,&v.data()[index],65536,0);
-            //checkMsgLen(msg_len);
             if(msg_len<=0){
                 break;
             }
             res="";
             res.insert(res.begin(),v.begin()+index,v.begin()+index+msg_len);
             index+=msg_len;
-            //cout<<res.size()<<endl;
         }
         cout<<"the recieved length is "<<index<<endl;
         cout<<"finish receiving"<<endl;

@@ -2,30 +2,26 @@
 #include <thread>
 pthread_mutex_t thread_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-string check502(string response){
-    string bad="HTTP/1.1 502 Bad Gateway\r\n\r\n";
-    size_t f1=response.find("HTTP/1.1");
-    if(f1==string::npos){
-        return bad;
-    }
-    if(response.find("\r\n\r\n")==string::npos){  
-        return bad;
-    }
-    return "";
-}
+void handleGET(int browser_fd, int thread_id, Cache *cache, Request &p);
 
-string getResponseGet(Request request,Cache &cache,int thread_id){
+void handleCONNECT(int browser_fd, int thread_id, const string &hostname, const string &port);
+
+void handlePOST(int browser_fd, int thread_id, Request &p, const string &hostname, const string &port);
+
+void checkRequestValidation(int browser_fd, const string &ip_addr, int thread_id, Request &p);
+
+string fetchGetResponse(Request &request, Cache *cache, int thread_id){
     string hostname=request.getHostname();
     string port=request.getPort();
     Client client(hostname.c_str(),port.c_str()); 
     int client_socket=client.socket_fd;
     string uri=request.getURI();
-    string response=cache.get(uri);
+    string response=cache->get(uri);
     if(response!=""){
         cout<<"in cache"<<endl;
         Response rsp(response);
         if(rsp.needRevalidate(thread_id)){
-            response=cache.revalidate(request,rsp,client_socket,thread_id);
+            response=cache->revalidate(request,rsp,client_socket,thread_id);
         }
         else{
             string message=generateLogMsg(thread_id,"in cache, valid");
@@ -37,22 +33,14 @@ string getResponseGet(Request request,Cache &cache,int thread_id){
         string message=generateLogMsg(thread_id,"not in cache");
         writeToLog(message);
         string requestContent = request.getRequest();
-        //cout<<requestContent<<endl;
         sendString(client_socket,requestContent);
         writeRequestLog(request.getFirstLine(),hostname,thread_id);
         vector<char> r;
         client.my_recv(r);
-        // response=recvString(client_socket);
-        // cout<<"received"<<endl;
-        //cout<<response<<endl;
-        // string bad=check502(response);
-        // if(bad!=""){
-        //     return bad;
-        // }
         Response rsp(r);
         writeReceiveLog(rsp.getFirstLine(),hostname,thread_id);
         response = string(r.begin(),r.end());
-        cache.storeResponse(uri,rsp,thread_id);
+        cache->storeResponse(uri,rsp,thread_id);
         cout<<"store in cache"<<endl;
     }
     return response;
@@ -99,7 +87,6 @@ void post(int browser_fd, int server_fd, Request request, int thread_id){
             string log_msg = generateLogMsg(thread_id,"Received \""+res.getFirstLine()
                                     +"\" from "+request.getHostname());
             writeToLog(log_msg);
-            //cout << "received response: " << response << endl;
             send(browser_fd, response, response_len, 0);
             string log_msg2 = generateLogMsg(thread_id,"Responding \""+res.getFirstLine()+"\"");
             writeToLog(log_msg2);
@@ -116,6 +103,7 @@ void *process_request(void * information){
     string ip_addr = info->ip_addr;
     int thread_id = info->thread_id;
     Cache *cache = info->cache;
+
     char request[65536] = {0};
     int len = recv(browser_fd, request, sizeof(request),0);
     if(len<=0){
@@ -124,6 +112,7 @@ void *process_request(void * information){
         writeToLog(log_msg);
         return NULL;
     }
+
     string req = string(request,len);
     cout<<"Thread: "<<thread_id<<" is created"<<endl;
     Request p(req);
@@ -131,72 +120,69 @@ void *process_request(void * information){
     string hostname=p.getHostname();
     string port=p.getPort();
     cout<<thread_id << ": "<<p.getFirstLine()<<endl;
+
+    checkRequestValidation(browser_fd, ip_addr, thread_id, p);
+
+    if(method=="GET"){
+        handleGET(browser_fd, thread_id, cache, p);
+    }else if(method=="CONNECT"){
+        handleCONNECT(browser_fd, thread_id, hostname, port);
+    }else if(method=="POST"){
+        handlePOST(browser_fd, thread_id, p, hostname, port);
+    }
+    return NULL;
+}
+
+void checkRequestValidation(int browser_fd, const string &ip_addr, int thread_id, Request &p) {
     if(p.isValid()){
-        std::string errMsg = p.getFirstLine()+" from "+ip_addr+" @ "+currTime();
+        string errMsg = p.getFirstLine()+" from "+ip_addr+" @ "+currTime();
         string log_msg = generateLogMsg(thread_id,errMsg);
         writeToLog(log_msg);
     }else{
-        std::string errMsg = std::string("Responding \"HTTP/1.1 400 Bad Request\"")+" @ "+currTime();
+        string errMsg = string("Responding \"HTTP/1.1 400 Bad Request\"")+" @ "+currTime();
         sendString(browser_fd,errMsg);
         string log_msg = generateLogMsg(thread_id,errMsg);
         writeToLog(log_msg);
     }
-    if(method=="GET"){
-        try{
-            cout<<thread_id << ": "<<"try get response"<<endl;
-            string response=getResponseGet(p,*cache,thread_id);
-            //cout<<response<<endl;
-            Response rsp(response);
-            string message=generateLogMsg(thread_id,"Responding "+rsp.getFirstLine());
-            writeToLog(message);
-            sendString(browser_fd,response);
-            cout<<thread_id << ": "<<"response send"<<endl;
-        }catch(MyException e){
-            string log_msg = generateLogMsg(thread_id, e.what());
-            writeToLog(log_msg);
-            cerr<<thread_id<<": "<<e.what()<<endl;
-        }
-        // the code below is the version without cache
-        // try{
-        //     //cout<<port<<endl;
-        //     Client client(hostname.c_str(),port.c_str());
-        //     send(client.socket_fd,request,len,0);
-        //     vector<char> rsp;
-        //     client.my_recv(rsp);
-        //     my_sendTo(browser_fd,rsp);
-        //     //string response = client.my_recv();
-        //     // string response(rsp.begin(),rsp.end());
-        //     // sendString(browser_fd,response);
-        // }
-        // catch(MyException e){
-        //     string log_msg = generateLogMsg(thread_id, e.what());
-        //     writeToLog(log_msg);
-        //     cerr<<thread_id<<": "<<e.what()<<endl;
-        // }    
-    }else if(method=="CONNECT"){
-        try{
-            //cout<<thread_id << ": "<<port<<endl;
-            Client client(hostname.c_str(),port.c_str());
-            stay_connect(browser_fd,client.socket_fd,thread_id);
-            string log_msg = generateLogMsg(thread_id, "Tunnel closed");
-            writeToLog(log_msg);
-        }
-        catch(MyException e){
-            string log_msg = generateLogMsg(thread_id, e.what());
-            writeToLog(log_msg);
-            cerr<<thread_id<<": "<<e.what()<<endl;
-        }
-    }else if(method=="POST"){
-        try{
-            Client client(hostname.c_str(),port.c_str());
-            post(browser_fd,client.socket_fd,p,thread_id);
-        }catch(MyException e){
-            string log_msg = generateLogMsg(thread_id, e.what());
-            writeToLog(log_msg);
-            cerr<<thread_id<<": "<<e.what()<<endl;
-        }
+}
+
+void handlePOST(int browser_fd, int thread_id, Request &p, const string &hostname, const string &port) {
+    try{
+        Client client(hostname.c_str(),port.c_str());
+        post(browser_fd,client.socket_fd,p,thread_id);
+    }catch(MyException e){
+        string log_msg = generateLogMsg(thread_id, e.what());
+        writeToLog(log_msg);
+        cerr<<thread_id<<": "<<e.what()<<endl;
     }
-    return NULL;
+}
+
+void handleCONNECT(int browser_fd, int thread_id, const string &hostname, const string &port) {
+    try{
+        Client client(hostname.c_str(),port.c_str());
+        stay_connect(browser_fd,client.socket_fd,thread_id);
+        string log_msg = generateLogMsg(thread_id, "Tunnel closed");
+        writeToLog(log_msg);
+    }
+    catch(MyException e){
+        string log_msg = generateLogMsg(thread_id, e.what());
+        writeToLog(log_msg);
+        cerr<<thread_id<<": "<<e.what()<<endl;
+    }
+}
+
+void handleGET(int browser_fd, int thread_id, Cache *cache, Request &p) {
+    try{
+        string response=fetchGetResponse(p, cache, thread_id);
+        Response rsp(response);
+        string message=generateLogMsg(thread_id,"Responding "+rsp.getFirstLine());
+        writeToLog(message);
+        sendString(browser_fd,response);
+    }catch(MyException e){
+        string log_msg = generateLogMsg(thread_id, e.what());
+        writeToLog(log_msg);
+        cerr<<thread_id<<": "<<e.what()<<endl;
+    }
 }
 
 
